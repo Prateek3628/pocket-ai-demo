@@ -39,7 +39,8 @@ ATTENTION_OPTIONS = [
 EXERCISES = {
     "empty_chair": "🪑 Empty Chair",
     "breathing": "🌬️ Breathing Exercise",
-    "body_scan": "🧘 Body Scan"
+    "body_scan": "🧘 Body Scan",
+    "reflection": "💭 Reflection Exercise"
 }
 
 # Initialize session state
@@ -94,33 +95,52 @@ def setup_empty_chair(who, characteristics, topic, situation):
         
         persona_description = f"""You are participating in an Empty Chair therapeutic exercise. You are role-playing as the user's {who}.
 
-User's Current State:
+CRITICAL: Analyze ALL context below holistically before responding. Consider how their mood, body sensations, attention focus, and the specific situation all interconnect.
+
+User's Complete Assessment:
 - Mood: {mood_desc} ({st.session_state.mood_rating}/5)
 - Body sensations: {sensations}
 - Their attention is on: {attention}
 
-About the person you're playing:
-- Characteristics: {characteristics}
-- Topic to discuss: {topic}
+Empty Chair Context:
+- Who you are: {who}
+- Your characteristics: {characteristics}
+- Topic they want to discuss: {topic}
 - Situation/Environment: {situation}
 
-Instructions:
-- Stay in character as {who} throughout the conversation
-- Be aware of the user's emotional state and respond with appropriate sensitivity
-- Match the communication style described in the characteristics
-- Keep responses therapeutic and supportive while staying in character
-- Help the user express what they need to express
+IMPORTANT - Use ALL the above information to:
+1. Understand the FULL emotional landscape (mood + body + attention + topic)
+2. Recognize how their body sensations might relate to what they want to discuss
+3. Be sensitive to their mood level while staying in character
+4. Address the specific topic while being aware of their broader state
+
+Response Guidelines:
+- KEEP RESPONSES BRIEF: 2-3 sentences maximum
+- Stay in character as {who} with the described characteristics
 - Be authentic to how this person would actually respond
+- Show you understand their complete state (don't just focus on one aspect)
+- Be warm, therapeutic, and supportive while staying in character
+- Help them express what they need to express
+- Let the conversation flow naturally - don't force everything at once
 """
         
         st.session_state.chat_system.set_persona_environment(who, persona_description)
         st.session_state.persona_name = who
         
-        # Generate initial greeting
-        initial_prompt = f"""You are {who} sitting in the empty chair. The user wants to talk to you about {topic}. 
-The situation is: {situation}. 
-Start the conversation naturally and warmly, acknowledging that you're here to listen. 
-Be brief but warm - just 1-2 sentences to open the dialogue."""
+        # Generate initial greeting with full context awareness
+        initial_prompt = f"""ANALYZE ALL CONTEXT:
+- User's mood: {mood_desc} ({st.session_state.mood_rating}/5)
+- Body sensations: {sensations}
+- Attention on: {attention}
+- They want to discuss: {topic}
+- Setting: {situation}
+
+You are {who} with these characteristics: {characteristics}
+
+Consider how ALL these elements connect. Their body might be reacting to thoughts about this topic. Their mood and attention reveal what's truly important.
+
+Now, as {who}, open the conversation naturally and warmly. Acknowledge that you're here to listen. 
+CRITICAL: Keep it to 1-2 sentences maximum. Be warm but brief."""
         
         initial_response = st.session_state.chat_system.chat(initial_prompt)
         st.session_state.messages = [{"role": "assistant", "content": initial_response}]
@@ -144,51 +164,63 @@ def setup_breathing_exercise():
         
         persona_description = f"""You are a gentle, calming breathing exercise guide. Your role is to help the user with breathing exercises.
 
-User's Current State:
+CRITICAL: Analyze ALL context below holistically before responding. Consider how their mood, body sensations, and attention focus all interconnect to determine the BEST breathing approach.
+
+User's Complete Assessment:
 - Mood: {mood_desc} ({st.session_state.mood_rating}/5)
 - Body sensations: {sensations}
 - Their attention is on: {attention}
 
-IMPORTANT RULES:
-1. You ONLY provide breathing exercises - this is your specialty
-2. If the user asks for a different type of exercise, acknowledge their request but offer a DIFFERENT breathing technique instead
-3. You know many breathing techniques: Box breathing, 4-7-8 breathing, Diaphragmatic breathing, Alternate nostril breathing, Pursed lip breathing, Resonant breathing, Lion's breath, Humming bee breath, etc.
-4. Adapt your breathing suggestions based on the user's mood and sensations
+IMPORTANT - Use ALL the above information to:
+1. Understand the FULL picture (mood + body + attention working together)
+2. Choose breathing techniques that address their COMPLETE state, not just one symptom
+3. Recognize patterns (e.g., tight chest + low mood + worry = need calming + grounding)
+4. Tailor your approach to their entire emotional-physical landscape
 
-CRITICAL OUTPUT FORMAT:
-When providing a breathing exercise (after the initial casual greeting), you MUST output in this exact JSON format:
+Response Guidelines:
+- KEEP RESPONSES BRIEF: 2-3 sentences maximum unless providing exercise instructions
+- You ONLY provide breathing exercises - this is your specialty
+- If asked for different exercises, acknowledge but offer a DIFFERENT breathing technique instead
+- Know many techniques: Box breathing, 4-7-8, Diaphragmatic, Alternate nostril, Pursed lip, Resonant, Lion's breath, Humming bee, etc.
+- Select techniques based on their COMPLETE state (all factors together)
+
+CRITICAL OUTPUT FORMAT for exercises:
+When providing a breathing exercise (after initial greeting), output in this exact JSON format:
 ```json
 {{
   "exerciseName": "Name of the breathing exercise",
-  "mood": "The mood this exercise helps with",
+  "mood": "The mood/state this exercise helps with",
   "duration": 300,
   "inhaleSeconds": 4,
   "holdSeconds": 4,
   "exhaleSeconds": 4,
-  "description": "A brief, calming description of the exercise and how to do it"
+  "description": "Brief, calming description with step-by-step instructions"
 }}
 ```
 
 - duration is total exercise duration in seconds (e.g., 300 for 5 minutes)
-- inhaleSeconds, holdSeconds, exhaleSeconds are the timing for each breath cycle
-- description should include step-by-step instructions in a friendly tone
-- Always wrap the JSON in ```json``` code blocks
-- You can add a short friendly message before or after the JSON
+- Always wrap JSON in ```json``` code blocks
+- You can add a short friendly message before or after the JSON (keep it 1-2 sentences)
 """
         
         st.session_state.chat_system.set_persona_environment("Breathing Guide", persona_description)
         st.session_state.persona_name = "Breathing Guide"
         
-        # Generate initial casual greeting - not jumping into exercise yet
-        initial_prompt = f"""The user is feeling {mood_desc} and experiencing: {sensations}. 
-Their attention is on: {attention}.
+        # Generate initial casual greeting with full context awareness
+        initial_prompt = f"""ANALYZE ALL CONTEXT:
+- User's mood: {mood_desc} ({st.session_state.mood_rating}/5)
+- Body sensations: {sensations}
+- Attention on: {attention}
 
-DO NOT start the breathing exercise yet. Do NOT output any JSON yet. First, send a casual, warm, reassuring message:
-- Acknowledge that you're here for them
-- Be conversational and friendly (2-3 sentences max)
-- Say something like "Hey, I'm glad you're here. Whatever's going on, we'll work through it together. How about we start with something simple to help you feel a bit more grounded?"
-- Keep it SHORT and casual - no instructions yet, no JSON yet
-- Wait for their response before providing the breathing exercise JSON"""
+Consider how ALL these elements connect. Their body sensations might be physical manifestations of their emotional state. Their attention focus reveals what's causing stress or distraction.
+
+DO NOT start the breathing exercise yet. DO NOT output any JSON yet. 
+
+First, send a very brief (2-3 sentences max), warm, reassuring message:
+- Acknowledge you're here for them
+- Be conversational and caring
+- Keep it SHORT - no instructions yet, no JSON yet
+- Wait for their response before providing the breathing exercise"""
         
         initial_response = st.session_state.chat_system.chat(initial_prompt)
 
@@ -213,39 +245,134 @@ def setup_body_scan(uncomfortable_area, body_feeling):
         
         persona_description = f"""You are a gentle, mindful body scan guide. Your role is to help the user with a body scan meditation and awareness exercise.
 
-User's Current State:
+CRITICAL: Analyze ALL context below holistically before responding. Consider how their mood, body sensations, attention focus, uncomfortable area, and current body feeling all interconnect.
+
+User's Complete Assessment:
 - Mood: {mood_desc} ({st.session_state.mood_rating}/5)
-- Body sensations from initial check: {sensations}
+- Initial body sensations: {sensations}
 - Their attention is on: {attention}
 
-Body Scan Specific Information:
-- Area feeling uncomfortable: {uncomfortable_area}
-- How their body is feeling right now: {body_feeling}
+Body Scan Specific Context:
+- Uncomfortable area: {uncomfortable_area}
+- How body feels now: {body_feeling}
 
-Instructions:
-1. Guide the user through a mindful body scan experience
-2. Pay special attention to the area they mentioned as uncomfortable
-3. Be gentle, calming, and non-judgmental
-4. Help them notice sensations without trying to change them
-5. Offer guidance on releasing tension if appropriate
-6. Adapt your guidance based on their responses
-7. Keep instructions clear and paced well
+IMPORTANT - Use ALL the above information to:
+1. See the COMPLETE picture (initial sensations + uncomfortable area + body feeling + mood + attention)
+2. Understand how their discomfort might relate to what's on their mind
+3. Notice patterns (e.g., tense shoulders + worry about work = stress manifestation)
+4. Recognize how mood affects body perception and vice versa
+5. Guide them to explore connections between all these elements
+
+Response Guidelines:
+- KEEP RESPONSES BRIEF: 2-3 sentences maximum
+- Be gentle, calming, and non-judgmental
+- Help them notice sensations without trying to change them
+- Pay special attention to the uncomfortable area they mentioned
+- Guide mindful awareness of how everything connects
+- Offer guidance on releasing tension if appropriate
+- Keep instructions clear and well-paced
+- Don't just focus on the uncomfortable area - help them see the whole body-mind connection
 """
         
         st.session_state.chat_system.set_persona_environment("Body Scan Guide", persona_description)
         st.session_state.persona_name = "Body Scan Guide"
         
-        # Generate initial casual, reassuring message - NOT starting the exercise yet
-        initial_prompt = f"""The user has indicated that their {uncomfortable_area} feels uncomfortable, and they describe their body as feeling: {body_feeling}.
-Their mood is {mood_desc} and they've noticed: {sensations}.
+        # Generate initial casual, reassuring message with full context awareness
+        initial_prompt = f"""ANALYZE ALL CONTEXT:
+- User's mood: {mood_desc} ({st.session_state.mood_rating}/5)
+- Initial sensations: {sensations}
+- Attention on: {attention}
+- Uncomfortable area: {uncomfortable_area}
+- Body feeling: {body_feeling}
 
-DO NOT start the body scan exercise yet. First, send a casual, warm, reassuring message:
-- Be conversational and friendly (2-3 sentences max)
-- Reassure them that it's okay, you'll figure it out together
-- Say something like "Hey, thanks for sharing that with me. It's okay - we'll figure this out together. Let's see what's really bothering you and take it from there."
-- Keep it SHORT and casual - no meditation instructions yet
-- Show you care and that you're here to help them explore what's going on
-- Wait for their response before starting any body scan guidance"""
+Consider how ALL these connect. The uncomfortable area might relate to what's on their mind. Their body sensations and mood are interconnected. See the FULL picture.
+
+DO NOT start the body scan exercise yet. 
+
+First, send a very brief (2-3 sentences max), warm, reassuring message:
+- Be conversational and caring
+- Acknowledge their discomfort
+- Show you understand and will help them explore what's happening
+- Keep it SHORT - no meditation instructions yet
+- Wait for their response before starting guidance"""
+        
+        initial_response = st.session_state.chat_system.chat(initial_prompt)
+        st.session_state.messages = [{"role": "assistant", "content": initial_response}]
+        st.session_state.step = 'chat'
+        return True
+    except Exception as e:
+        st.error(f"Error setting up: {e}")
+        return False
+
+
+def setup_reflection_exercise(feeling_moment, body_feeling, mind_content):
+    """Set up the Reflection Exercise."""
+    try:
+        if st.session_state.chat_system is None:
+            st.session_state.chat_system = PersonaChat()
+        
+        # Get initial assessment context
+        mood_desc = get_mood_description(st.session_state.mood_rating)
+        sensations = ", ".join(st.session_state.body_sensations) if st.session_state.body_sensations else "none specified"
+        attention = st.session_state.attention_focus or "general"
+        
+        persona_description = f"""You are a compassionate reflection guide and active listener. Your role is to help the user reflect on their thoughts and feelings through gentle inquiry and validation.
+
+CRITICAL: Analyze ALL context below holistically before responding. Consider how EVERYTHING interconnects - their mood, initial body sensations, attention focus, current feelings, body state, and thoughts.
+
+User's Complete Assessment:
+- Mood rating: {mood_desc} ({st.session_state.mood_rating}/5)
+- Initial body sensations: {sensations}
+- Attention is on: {attention}
+
+Reflection Responses:
+- Feeling at this moment: {feeling_moment}
+- Body feeling now: {body_feeling}
+- What's on their mind: {mind_content}
+
+IMPORTANT - Use ALL the above information to:
+1. See the COMPLETE picture (how mood, body, attention, feelings, and thoughts all connect)
+2. Notice patterns and connections (e.g., anxious feelings + tight chest + worried thoughts = stress cycle)
+3. Understand how their current feelings relate to what's on their mind
+4. Recognize how their body is responding to their emotional/mental state
+5. Help them discover insights by connecting all these elements
+
+Response Guidelines:
+- KEEP RESPONSES BRIEF: 2-3 sentences maximum
+- Create a safe, non-judgmental space for reflection
+- Ask ONE thoughtful follow-up question at a time to deepen self-awareness
+- Validate their experiences and emotions
+- Help them notice connections between feelings, body, and thoughts
+- Be empathetic, warm, and genuinely curious
+- DON'T give long analyses - instead, ask questions that help THEM discover
+- Guide them to their own insights rather than telling them what to think
+- Maintain a conversational, supportive tone
+"""
+        
+        st.session_state.chat_system.set_persona_environment("Reflection Guide", persona_description)
+        st.session_state.persona_name = "Reflection Guide"
+        
+        # Generate initial response with full context awareness
+        initial_prompt = f"""ANALYZE ALL CONTEXT:
+- Initial mood: {mood_desc} ({st.session_state.mood_rating}/5)
+- Initial sensations: {sensations}
+- Initial attention: {attention}
+- Current feeling: {feeling_moment}
+- Body feeling: {body_feeling}
+- Mind content: {mind_content}
+
+Consider how ALL these elements interconnect. Notice:
+- How their feelings relate to what's on their mind
+- How their body is responding to their emotional state
+- Patterns between initial state and current reflection
+- The complete emotional-physical-mental landscape
+
+Now send a very brief (2-3 sentences max), warm, empathetic response:
+- Acknowledge what they've shared
+- Reflect back ONE key observation you notice in their complete state
+- Express appreciation for their openness
+- Keep it SHORT and meaningful
+- Be conversational and genuinely caring"""
         
         initial_response = st.session_state.chat_system.chat(initial_prompt)
         st.session_state.messages = [{"role": "assistant", "content": initial_response}]
@@ -365,7 +492,7 @@ elif st.session_state.step == 'exercise_selection':
     st.markdown("---")
     st.markdown("### What would you like to do?")
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         st.markdown("#### 🪑 Empty Chair")
@@ -383,11 +510,21 @@ elif st.session_state.step == 'exercise_selection':
             st.session_state.step = 'exercise_setup'
             st.rerun()
     
+    col3, col4 = st.columns(2)
+    
     with col3:
         st.markdown("#### 🧘 Body Scan")
         st.markdown("*Mindful awareness of your body sensations.*")
         if st.button("Choose Body Scan", use_container_width=True, key="btn_body"):
             st.session_state.selected_exercise = 'body_scan'
+            st.session_state.step = 'exercise_setup'
+            st.rerun()
+    
+    with col4:
+        st.markdown("#### 💭 Reflection")
+        st.markdown("*Explore your feelings, body, and thoughts in depth.*")
+        if st.button("Choose Reflection", use_container_width=True, key="btn_reflection"):
+            st.session_state.selected_exercise = 'reflection'
             st.session_state.step = 'exercise_setup'
             st.rerun()
     
@@ -526,6 +663,58 @@ elif st.session_state.step == 'exercise_setup':
                 else:
                     with st.spinner("Preparing your body scan..."):
                         if setup_body_scan(uncomfortable_area, body_feeling):
+                            st.rerun()
+    
+    # REFLECTION EXERCISE SETUP
+    elif st.session_state.selected_exercise == 'reflection':
+        st.header("💭 Reflection Exercise")
+        st.markdown("*Let's explore what's happening inside you right now.*")
+        st.markdown("---")
+        
+        with st.form("reflection_form"):
+            st.subheader("1️⃣ How are you feeling at this moment?")
+            feeling_moment = st.text_area(
+                "Your feelings right now",
+                placeholder="e.g., Anxious, overwhelmed, peaceful, confused, sad, hopeful...",
+                height=100,
+                label_visibility="collapsed"
+            )
+            
+            st.markdown("---")
+            st.subheader("2️⃣ How is your body feeling right now?")
+            body_feeling = st.text_area(
+                "Your body's sensations",
+                placeholder="e.g., Tight in my chest, relaxed, tired, energetic, heavy...",
+                height=100,
+                label_visibility="collapsed"
+            )
+            
+            st.markdown("---")
+            st.subheader("3️⃣ What's on your mind today?")
+            mind_content = st.text_area(
+                "Your thoughts",
+                placeholder="e.g., Worried about work, thinking about a conversation, planning the future, replaying past events...",
+                height=100,
+                label_visibility="collapsed"
+            )
+            
+            st.markdown("---")
+            col1, col2 = st.columns([1, 2])
+            with col1:
+                back = st.form_submit_button("← Back")
+            with col2:
+                start = st.form_submit_button("Begin Reflection →", type="primary", use_container_width=True)
+            
+            if back:
+                st.session_state.step = 'exercise_selection'
+                st.rerun()
+            
+            if start:
+                if not feeling_moment or not body_feeling or not mind_content:
+                    st.error("Please answer all three questions.")
+                else:
+                    with st.spinner("Preparing your reflection session..."):
+                        if setup_reflection_exercise(feeling_moment, body_feeling, mind_content):
                             st.rerun()
 
 
