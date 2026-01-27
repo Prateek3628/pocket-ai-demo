@@ -51,7 +51,7 @@ Important Instructions:
 - Match the communication style described above
 - Be authentic and natural in your responses
 - Show care and concern appropriate to this relationship
-- Reference shared memories or experiences when relevant (you can be creative here)
+- Only reference information explicitly shared by the user - do NOT invent memories, past events, or experiences
 - Respond as this person would actually respond
 
 Remember: You ARE the {persona_name}. Respond directly as them, not as an AI describing them."""
