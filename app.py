@@ -2,6 +2,8 @@ import streamlit as st
 from dotenv import load_dotenv
 from script import PersonaChat
 import os
+import json
+import re
 
 # Load environment variables
 load_dotenv()
@@ -54,7 +56,10 @@ def init_session_state():
         'attention_focus': None,
         'selected_exercise': None,
         'exercise_context': {},
-        'persona_name': ''
+        'persona_name': '',
+        'breathing_exercise_given': False,
+        'breathing_exercises_used': [],
+        'show_finished_button': False
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -177,12 +182,34 @@ IMPORTANT - Use ALL the above information to:
 3. Recognize patterns (e.g., tight chest + low mood + worry = need calming + grounding)
 4. Tailor your approach to their entire emotional-physical landscape
 
+FLOW - NEVER-ENDING CONVERSATION PREVENTION:
+This is NOT a never-ending conversation. Your role is:
+1. Provide ONE breathing exercise based on their complete state
+2. Wait for user to complete it and click "Finished Exercise" button
+3. When button is clicked, ask: "Did you complete the breathing exercise?"
+4. **If YES:**
+   - Ask "How do you feel?"
+   - Listen to their response
+   - Give ONE concluding, supportive message
+   - DONE - don't keep asking questions
+5. **If NO (they didn't complete it):**
+   - Gently ask: "That's okay. What made it difficult for you?" or "Is there a reason you weren't able to complete it?"
+   - Listen to their response with empathy
+   - Then ask: "Would you like to try a different breathing exercise that might work better for you?"
+   - If they say yes: Provide a DIFFERENT exercise (check previously used list)
+   - If they say no: Acknowledge and conclude supportively
+6. DO NOT keep asking follow-up questions after conclusion
+7. If user sends another message after conclusion, you can respond but keep it brief
+
 Response Guidelines:
 - KEEP RESPONSES BRIEF: 2-3 sentences maximum unless providing exercise instructions
 - You ONLY provide breathing exercises - this is your specialty
-- If asked for different exercises, acknowledge but offer a DIFFERENT breathing technique instead
+- NEVER repeat the same exercise twice
 - Know many techniques: Box breathing, 4-7-8, Diaphragmatic, Alternate nostril, Pursed lip, Resonant, Lion's breath, Humming bee, etc.
 - Select techniques based on their COMPLETE state (all factors together)
+- After giving exercise and user completes it, CONCLUDE gracefully
+
+Previously used exercises: {", ".join(st.session_state.breathing_exercises_used) if st.session_state.breathing_exercises_used else "none"}
 
 CRITICAL OUTPUT FORMAT for exercises:
 When providing a breathing exercise (after initial greeting), output in this exact JSON format:
@@ -201,6 +228,7 @@ When providing a breathing exercise (after initial greeting), output in this exa
 - duration is total exercise duration in seconds (e.g., 300 for 5 minutes)
 - Always wrap JSON in ```json``` code blocks
 - You can add a short friendly message before or after the JSON (keep it 1-2 sentences)
+- After providing JSON, the user will see a "Finished Exercise" button
 """
         
         st.session_state.chat_system.set_persona_environment("Breathing Guide", persona_description)
@@ -243,7 +271,7 @@ def setup_body_scan(uncomfortable_area, body_feeling):
         sensations = ", ".join(st.session_state.body_sensations) if st.session_state.body_sensations else "none specified"
         attention = st.session_state.attention_focus or "general"
         
-        persona_description = f"""You are a gentle, mindful body scan guide. Your role is to help the user with a body scan meditation and awareness exercise.
+        persona_description = f"""You are a gentle, mindful body scan guide and emotional wellness expert. Your role is to help the user understand the emotional/psychological reasons behind their physical discomfort.
 
 CRITICAL: Analyze ALL context below holistically before responding. Consider how their mood, body sensations, attention focus, uncomfortable area, and current body feeling all interconnect.
 
@@ -261,17 +289,51 @@ IMPORTANT - Use ALL the above information to:
 2. Understand how their discomfort might relate to what's on their mind
 3. Notice patterns (e.g., tense shoulders + worry about work = stress manifestation)
 4. Recognize how mood affects body perception and vice versa
-5. Guide them to explore connections between all these elements
+5. YOU are the expert - YOU provide insights about emotional/psychological reasons
+
+FLOW - NEVER-ENDING CONVERSATION PREVENTION:
+This is NOT a never-ending conversation. Follow this EXACT structured approach:
+
+**PHASE 1: Gather ALL Incidents**
+   - "Has anything stressful happened recently?"
+   - If they mention something: "I see. Was there anything else that happened?"
+   - Continue asking: "Were there any other incidents or situations?"
+   - Keep asking variations until user clearly says "no", "that's all", "nothing else", or similar
+   - Do NOT move to next phase until user confirms there are no more incidents
+
+**PHASE 2: Ask About Emotional Impact**
+   - "Did these incidents create any emotional impact on you? Like anxiety, frustration, worry, or hurt?"
+   - Wait for their response
+
+**PHASE 3: Console the User (3-4 messages)**
+   - Message 1: Acknowledge their pain/struggle with deep empathy and validation
+   - Message 2: Normalize their feelings and reassure them it's okay to feel this way
+   - Message 3: Offer comfort and understanding about their situation
+   - Message 4 (optional): Express care and support
+   - BE WARM, CARING, and SUPPORTIVE in each message
+   - Keep each message 2-3 sentences
+
+**PHASE 4: Check How They're Feeling**
+   - "How are you feeling right now? Are you okay?"
+   - Wait for their response
+
+**PHASE 5: Provide the Psychological/Emotional Reason**
+   - NOW explain how their body is manifesting the emotional stress
+   - Connect the specific incidents they mentioned to the physical symptoms
+   - Be specific and insightful based on ALL the context
+   - Example: "The tension in your shoulders is your body's response to the anxiety from [incident]. When we experience [emotion], our bodies often hold it in [area]."
+
+**PHASE 6: Conclude Naturally**
+   - Don't keep asking more questions
+   - User can continue chatting if they want, but you've given the core insight
 
 Response Guidelines:
-- KEEP RESPONSES BRIEF: 2-3 sentences maximum
+- KEEP RESPONSES BRIEF: 2-3 sentences maximum per message
 - Be gentle, calming, and non-judgmental
-- Help them notice sensations without trying to change them
+- YOU are the expert - provide insights, don't just ask questions
+- DO NOT ask "What do you think the reason is?" - YOU tell them the reason
 - Pay special attention to the uncomfortable area they mentioned
-- Guide mindful awareness of how everything connects
-- Offer guidance on releasing tension if appropriate
-- Keep instructions clear and well-paced
-- Don't just focus on the uncomfortable area - help them see the whole body-mind connection
+- Connect everything: mood + sensations + attention + incidents + emotions + physical pain
 """
         
         st.session_state.chat_system.set_persona_environment("Body Scan Guide", persona_description)
@@ -287,17 +349,20 @@ Response Guidelines:
 
 Consider how ALL these connect. The uncomfortable area might relate to what's on their mind. Their body sensations and mood are interconnected. See the FULL picture.
 
-DO NOT start the body scan exercise yet. 
-
-First, send a very brief (2-3 sentences max), warm, reassuring message:
+Send a very brief (2-3 sentences max), warm, reassuring message:
 - Be conversational and caring
-- Acknowledge their discomfort
+- Acknowledge their discomfort with empathy
 - Show you understand and will help them explore what's happening
-- Keep it SHORT - no meditation instructions yet
-- Wait for their response before starting guidance"""
+- Keep it SHORT and comforting
+- Then you'll start asking about incidents in the next exchange"""
         
         initial_response = st.session_state.chat_system.chat(initial_prompt)
         st.session_state.messages = [{"role": "assistant", "content": initial_response}]
+        st.session_state.step = 'chat'
+        return True
+    except Exception as e:
+        st.error(f"Error setting up: {e}")
+        return False
         st.session_state.step = 'chat'
         return True
     except Exception as e:
@@ -726,12 +791,54 @@ elif st.session_state.step == 'chat':
     if st.session_state.persona_name:
         st.caption(f"Chatting with: {st.session_state.persona_name}")
     
+    # Check if any message contains a breathing exercise (for button display)
+    has_breathing_exercise = False
+    latest_exercise_index = -1
+    if st.session_state.selected_exercise == 'breathing':
+        for idx, message in enumerate(st.session_state.messages):
+            if message["role"] == "assistant" and "```json" in message["content"]:
+                has_breathing_exercise = True
+                latest_exercise_index = idx
+                # Extract exercise name from JSON to track it
+                try:
+                    json_match = re.search(r'```json\s*(\{.*?\})\s*```', message["content"], re.DOTALL)
+                    if json_match:
+                        exercise_data = json.loads(json_match.group(1))
+                        exercise_name_from_json = exercise_data.get("exerciseName", "")
+                        if exercise_name_from_json and exercise_name_from_json not in st.session_state.breathing_exercises_used:
+                            st.session_state.breathing_exercises_used.append(exercise_name_from_json)
+                            # New exercise added - reset button flag so it appears again
+                            if st.session_state.show_finished_button:
+                                st.session_state.show_finished_button = False
+                except:
+                    pass
+    
     # Display chat messages
     chat_container = st.container()
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
                 st.markdown(message["content"])
+    
+    # Show "Finished Exercise" button for breathing exercise
+    # Button appears when exercise is given, disappears after user clicks it (marked by show_finished_button)
+    if st.session_state.selected_exercise == 'breathing' and has_breathing_exercise and not st.session_state.show_finished_button:
+        st.markdown("---")
+        if st.button("✅ Finished Exercise", type="primary", use_container_width=True, key="finished_breathing"):
+            # User clicked the button - add a system instruction instead of direct question
+            # This tells the AI to ask, rather than us asking directly
+            system_instruction = "[SYSTEM: User clicked 'Finished Exercise' button. Ask them if they completed the breathing exercise.]"
+            st.session_state.messages.append({"role": "user", "content": system_instruction})
+            
+            # Get AI to ask the question
+            with st.spinner("..."):
+                try:
+                    response = st.session_state.chat_system.chat(system_instruction)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    st.session_state.show_finished_button = True  # Hide button after click
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error: {str(e)}")
     
     # Chat input
     if prompt := st.chat_input("Type your message..."):
@@ -748,6 +855,11 @@ elif st.session_state.step == 'chat':
                     response = st.session_state.chat_system.chat(prompt)
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
+                    
+                    # Check if new exercise was provided in breathing module
+                    if (st.session_state.selected_exercise == 'breathing' and 
+                        "```json" in response):
+                        st.rerun()
                 except Exception as e:
                     st.error(f"Error: {str(e)}")
     
@@ -759,12 +871,16 @@ elif st.session_state.step == 'chat':
             if st.session_state.chat_system:
                 st.session_state.chat_system.reset_conversation()
             st.session_state.messages = []
+            st.session_state.breathing_exercises_used = []
+            st.session_state.show_finished_button = False
             st.rerun()
     with col2:
         if st.button("🔄 Change Exercise", use_container_width=True):
             st.session_state.step = 'exercise_selection'
             st.session_state.messages = []
             st.session_state.chat_system = None
+            st.session_state.breathing_exercises_used = []
+            st.session_state.show_finished_button = False
             st.rerun()
     with col3:
         if st.button("🏠 Start Over", use_container_width=True):
